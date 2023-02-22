@@ -1,5 +1,5 @@
 //jshint esversion:6
-
+const mongoose = require('mongoose');
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
@@ -16,22 +16,48 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
-let posts = [];
+// let posts = [];
 
-app.get("/", function(req, res){
-  res.render("home", {posts_html: posts})}
-);
+mongoose.connect("mongodb://localhost:27017/blogDB", {useNewUrlParser: true});
 
-app.get('/posts/:title', (req, res) => {
-    const requestedTitle = _.lowerCase(req.params.title);
-    posts.forEach(function(post){
-      const storedTitle = _.lowerCase(post.title);
-      if (storedTitle === requestedTitle){
-        res.render("post", {post_html: post});
-        return;
-      }
+//mongoose schema
+const postSchema = {
+    title: String,
+    content: String
+};
+//define post collection
+const Post = mongoose.model("Post", postSchema);
+
+app.get("/", function(req, res) {
+    //res.render("home", {posts_html: posts})}
+    //find all the posts in the posts collection and render that in the home.ejs
+    Post.find({}, function (err, posts) {
+        res.render("home", {
+            startingContent: homeStartingContent,
+            posts: posts
+        });
     });
+});
+
+app.get('/posts/:postId', (req, res) => {
+        const requestedPostId = req.params.postId;
+        //const requestedTitle = _.lowerCase(req.params.title);
+
+        Post.findOne({_id: requestedPostId}, function (err, post) {
+            res.render("post", {
+                title: post.title,
+                content: post.content
+            });
+        });
     }
+    // posts.forEach(function(post){
+    //   const storedTitle = _.lowerCase(post.title);
+    //   if (storedTitle === requestedTitle){
+    //     res.render("post", {post_html: post});
+    //     return;
+    //   }
+    // });
+    // }
 );
 
 app.get("/about", function(req, res){
@@ -51,14 +77,25 @@ app.post("/compose", function(req, res){
   //console.log(req.body.postTitle)
 
   //create js object
-  const postObj = {
-    title:req.body.postTitle,
-    body: req.body.postBody
-  };
+  // const postObj = {
+  //   title:req.body.postTitle,
+  //   body: req.body.postBody
+  // };
   // console.log(postObj);
   //store postObj into global variable posts array
-  posts.push(postObj);
-  res.redirect('/');
+  //posts.push(postObj);
+    //store req to post document
+    const post = new Post ({
+        title: req.body.postTitle,
+        content: req.body.postBody
+    });
+    post.save(function(err){
+        if (!err){
+            res.redirect("/");
+        } else {
+            console.log(err);
+        }
+    });
 });
 
 app.listen(3000, function() {
